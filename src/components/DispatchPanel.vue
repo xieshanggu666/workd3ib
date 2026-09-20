@@ -1,15 +1,18 @@
 <template>
   <div class="dispatch">
-    <div class="panel-title">🧭 资源调度</div>
+    <div class="panel-title-row">
+      <div class="panel-title">🧭 资源调度</div>
+      <button class="plan-btn" @click="store.openPlan()">🧠 多灾点统筹</button>
+    </div>
 
     <!-- 当前选中事件 -->
     <div v-if="selectedEvent" class="current-ev">
       <strong>{{ selectedEvent.title }}</strong>
-      <p>🧑‍🚒 所需资源清单</p>
-      <div class="demand-row" v-for="(qty, type) in selectedEvent.demand" :key="type">
-        <span class="d-label">{{ resLabel(type) }} {{ resIcon(type) }}</span>
-        <div class="d-bar"><i :style="{ width: barPct(qty, type) }"></i></div>
-        <span class="d-qty">{{ qty }}{{ resUnit(type) }}</span>
+      <p>🧑‍🚒 需求清单（已派 / 需求）</p>
+      <div class="demand-row" v-for="row in demandRows" :key="row.type">
+        <span class="d-label">{{ row.label }} {{ row.icon }}</span>
+        <div class="d-bar"><i :class="{ full: row.gap <= 0 }" :style="{ width: row.pct }"></i></div>
+        <span class="d-qty" :class="{ ok: row.gap <= 0 }">{{ row.supplied }}/{{ row.demand }}{{ row.unit }}</span>
       </div>
     </div>
     <div v-else class="placeholder">← 在地图上或左侧选择一个事件进行调度</div>
@@ -67,6 +70,7 @@
         <div class="di-head">
           <span class="di-dot" :style="{ background: d.color }"></span>
           <strong>{{ d.typeLabel }}</strong>
+          <span v-if="d.batchId" class="batch">统筹</span>
           <span class="di-qty">{{ d.qty }}{{ d.unit }}</span>
         </div>
         <p class="di-sub">{{ d.baseName }} → {{ d.eventTitle }}</p>
@@ -107,12 +111,21 @@ const formQtyLabel = computed(() => {
   return `${qty}${resUnit(form.value.type)}`
 })
 
-// 事件需求条比例
-function barPct(qty, type) {
-  const base = selectedEvent.value.demand[type] || 1
-  const pct = Math.min(100, Math.round((qty / base) * 100))
-  return Math.max(4, pct) + '%'
-}
+// 事件需求清单：已派 / 需求 / 缺口（随派发记录实时更新）
+const demandRows = computed(() => {
+  if (!selectedEvent.value) return []
+  const supplied = store.suppliedMap[selectedEvent.value.id] || {}
+  return Object.entries(selectedEvent.value.demand || {}).map(([type, demand]) => {
+    const sup = supplied[type] || 0
+    const pct = demand > 0 ? Math.min(100, Math.round((sup / demand) * 100)) : 100
+    return {
+      type, demand, supplied: sup,
+      gap: Math.max(0, demand - sup),
+      pct: Math.max(4, pct) + '%',
+      label: resLabel.value(type), icon: resIcon(type), unit: resUnit(type)
+    }
+  })
+})
 
 function onDispatch() {
   const rec = store.dispatchResource({
@@ -148,6 +161,13 @@ watch(selectedEvent, (ev) => {
 .dispatch::-webkit-scrollbar { width: 6px; }
 .dispatch::-webkit-scrollbar-thumb { background: #1c2b4a; border-radius: 4px; }
 .panel-title { font-size: 15px; font-weight: 700; color: #fff; }
+.panel-title-row { display: flex; align-items: center; justify-content: space-between; }
+.plan-btn {
+  background: linear-gradient(135deg, #1d3f8f, #2962ff);
+  border: none; color: #fff; font-size: 11px; font-weight: 600;
+  padding: 6px 11px; border-radius: 7px; cursor: pointer; transition: all 0.2s;
+}
+.plan-btn:hover { filter: brightness(1.15); box-shadow: 0 3px 10px rgba(41,98,255,0.4); }
 .panel-sub {
   font-size: 12px; color: #6f8cb8; font-weight: 600;
   border-left: 3px solid #4d8dff; padding-left: 8px; margin: 6px 0;
@@ -165,7 +185,9 @@ watch(selectedEvent, (ev) => {
 .d-label { width: 78px; color: #aebadd; flex-shrink: 0; }
 .d-bar { flex: 1; height: 6px; background: #0c1730; border-radius: 3px; overflow: hidden; }
 .d-bar i { display: block; height: 100%; background: linear-gradient(90deg, #4d8dff, #7e9ff5); border-radius: 3px; }
-.d-qty { width: 44px; text-align: right; color: #ffc107; flex-shrink: 0; }
+.d-bar i.full { background: linear-gradient(90deg, #2e7d32, #4caf50); }
+.d-qty { width: 74px; text-align: right; color: #ffc107; flex-shrink: 0; }
+.d-qty.ok { color: #7ef0c9; }
 .placeholder {
   color: #5b6f94; font-size: 12px; text-align: center;
   border: 1px dashed rgba(120,160,220,0.2); border-radius: 10px; padding: 24px 12px;
@@ -217,6 +239,11 @@ watch(selectedEvent, (ev) => {
 .di-head { display: flex; align-items: center; gap: 7px; }
 .di-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .di-head strong { color: #dbe4f3; font-size: 12px; }
+.batch {
+  font-size: 9px; color: #7e9ff5;
+  background: rgba(77,141,255,0.12); border: 1px solid rgba(77,141,255,0.35);
+  padding: 0 5px; border-radius: 3px;
+}
 .di-qty { margin-left: auto; color: #ffc107; font-size: 12px; font-weight: 700; }
 .di-sub { font-size: 10px; color: #8ba2c8; margin: 4px 0 0; }
 .di-meta { font-size: 10px; color: #5b6f94; margin: 2px 0 0; }

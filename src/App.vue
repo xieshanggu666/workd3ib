@@ -21,6 +21,9 @@
         </div>
       </aside>
     </div>
+
+    <!-- 多灾点资源统筹弹窗 -->
+    <CoordinationPanel />
   </div>
 </template>
 
@@ -32,6 +35,7 @@ import EventList from '@/components/EventList.vue'
 import MapBoard from '@/components/MapBoard.vue'
 import DispatchPanel from '@/components/DispatchPanel.vue'
 import EventDetail from '@/components/EventDetail.vue'
+import CoordinationPanel from '@/components/CoordinationPanel.vue'
 
 const store = useCommandStore()
 onMounted(() => store.loadScenario(store.scenarioId))
